@@ -1,14 +1,27 @@
-fakeroot can be built to either use SYSV IPC or TCP for message passing.
+This is a stripped-down version of the famous fakeroot tool targeting
+MacOS X exclusively. 
 
-Cases for which the SYSV IPC version fails or causes problems but for
-which fakeroot-tcp has been observed to work well include the items
-listed below.
+Fakeroot-mini enables XCode users to build packages containing items
+owned by root (ex: KEXT development) directly from the IDE with zero
+additional software installed.
 
-  * Multithreaded applications (using pthread)
-  * Running under realtime-preempt kernel
+Following are the key features:
+1. No installation, just a single interposing DYLIB.
+2. No daemon process, the state is stored in extended file attributes.
+
+A project willing to utilize fakeroot-mini is going to put the single
+interposing DYLIB in the project's repository. Add the following lines
+in project configuration:
+
+FAKEROOTENV=/usr/bin/env DYLD_INSERT_LIBRARIES=$(SRCROOT)/<..>/libfakermini.dylib
+CHOWN=$(FAKEROOTENV) $(inherited)
+
+And invoke tools normally requiring root like that:
+
+$(FAKEROOTENV) <tool> <arguments> 
 
 
-Portability Notes
+=== Portability Notes ===
 
 On OS X, only binaries that do NOT rely on Mach-based [e]uid/[e]gid/mode
 APIs will correctly use fakeroot altered ownership/permissions.

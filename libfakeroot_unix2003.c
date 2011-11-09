@@ -54,6 +54,7 @@
 #define INT_NEXT_FSTAT(a,b) NEXT_FSTAT64(_STAT_VER,a,b)
 #define INT_NEXT_FSTATAT(a,b,c,d) NEXT_FSTATAT64(_STAT_VER,a,b,c,d)
 #define INT_SEND_STAT(a,b) SEND_STAT64(a,b,_STAT_VER)
+#define INT_FAKED_STAT(st) FAKED_STAT64(st,_STAT_VER)
 #else
 #define INT_STRUCT_STAT struct stat
 #define INT_NEXT_STAT(a,b) NEXT_STAT(_STAT_VER,a,b)
@@ -61,6 +62,7 @@
 #define INT_NEXT_FSTAT(a,b) NEXT_FSTAT(_STAT_VER,a,b)
 #define INT_NEXT_FSTATAT(a,b,c,d) NEXT_FSTATAT(_STAT_VER,a,b,c,d)
 #define INT_SEND_STAT(a,b) SEND_STAT(a,b,_STAT_VER)
+#define INT_FAKED_STAT(st) FAKED_STAT(st,_STAT_VER)
 #endif
 
 #include <stdio.h>
@@ -90,12 +92,15 @@ int lchown$UNIX2003(const char *path, uid_t owner, gid_t group){
     fprintf(stderr, "lchown$UNIX2003 path %s owner %d group %d\n", path, owner, group);
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
+#ifdef FAKED_SET_NEEDS_STAT
   r=INT_NEXT_LSTAT(path, &st);
   if(r)
     return r;
+#endif
   st.st_uid=owner;
   st.st_gid=group;
-  INT_SEND_STAT(&st,chown_func);
+  if (FAKED_SET (chown_func, INT_FAKED_STAT(&st), FAKED_LINK(path)) == -1)
+    return -1;
   if(!dont_try_chown())
     r=next_lchown$UNIX2003(path,owner,group);
   else
@@ -116,13 +121,16 @@ int chmod$UNIX2003(const char *path, mode_t mode){
     fprintf(stderr, "chmod$UNIX2003 path %s\n", path);
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
+#ifdef FAKED_SET_NEEDS_STAT
   r=INT_NEXT_STAT(path, &st);
   if(r)
     return r;
+#endif
 
   st.st_mode=(mode&ALLPERMS)|(st.st_mode&~ALLPERMS);
 
-  INT_SEND_STAT(&st, chmod_func);
+  if (FAKED_SET (chown_func, INT_FAKED_STAT(&st), FAKED_FILE(path)) == -1)
+    return -1;
 
   /* if a file is unwritable, then root can still write to it
      (no matter who owns the file). If we are fakeroot, the only
@@ -156,13 +164,15 @@ int fchmod$UNIX2003(int fd, mode_t mode){
     fprintf(stderr, "fchmod$UNIX2003 fd %d\n", fd);
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
+#ifdef FAKED_SET_NEEDS_STAT
   r=INT_NEXT_FSTAT(fd, &st);
-
   if(r)
     return(r);
+#endif
 
   st.st_mode=(mode&ALLPERMS)|(st.st_mode&~ALLPERMS);
-  INT_SEND_STAT(&st,chmod_func);
+  if (FAKED_SET (chown_func, INT_FAKED_STAT(&st), FAKED_FD(fd)) == -1)
+    return -1;
 
   /* see chmod() for comment */
   mode |= 0600;

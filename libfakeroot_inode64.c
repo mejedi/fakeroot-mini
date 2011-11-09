@@ -58,8 +58,7 @@ int lstat$INODE64(const char *file_name,
   if(r)
     return -1;
 
-  send_get_stat64((struct stat64 *)st);
-  return 0;
+  return FAKED_GET (FAKED_STAT64((struct stat64 *)st, 0), FAKED_LINK(file_name));
 }
 
 
@@ -75,8 +74,7 @@ int stat$INODE64(const char *file_name,
   r=next_stat$INODE64(file_name,st);
   if(r)
     return -1;
-  send_get_stat64((struct stat64 *)st);
-  return 0;
+  return FAKED_GET (FAKED_STAT64((struct stat64 *)st, 0), FAKED_FILE(file_name));
 }
 
 
@@ -94,7 +92,7 @@ int fstat$INODE64(int fd,
     return -1;
   send_get_stat64((struct stat64 *)st);
 
-  return 0;
+  return FAKED_GET (FAKED_STAT64((struct stat64 *)st, 0), FAKED_FD(FD));
 }
 
 #ifdef HAVE_FTS_READ
@@ -107,8 +105,8 @@ FTSENT *fts_read$INODE64(FTS *ftsp) {
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
   r=next_fts_read$INODE64(ftsp);
-  if(r && r->fts_statp) {  /* Should we bother checking fts_info here? */
-    send_get_stat64((struct stat64 *)r->fts_statp);
+  if(r && r->fts_statp && r->fts_info != FTS_NSOK) {
+    FAKED_GET (FAKED_STAT64((struct stat64 *)r->fts_statp, 0), FAKED_FTSENT(r));
   }
 
   return r;
@@ -126,8 +124,8 @@ FTSENT *fts_children$INODE64(FTS *ftsp,
 #endif /* LIBFAKEROOT_DEBUGGING */
   first=next_fts_children$INODE64(ftsp, options);
   for(r = first; r; r = r->fts_link) {
-    if(r->fts_statp) {  /* Should we bother checking fts_info here? */
-      send_get_stat64((struct stat64 *)r->fts_statp);
+    if(r->fts_statp && r->fts_info != FTS_NSOK) {
+      FAKED_GET (FAKED_STAT64((struct stat64 *)r->fts_statp, 0), FAKED_FTSENT(r));
     }
   }
 

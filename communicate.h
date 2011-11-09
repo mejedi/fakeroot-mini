@@ -203,4 +203,60 @@ extern int msg_get;
 extern int sem_id;
 #endif /* ! FAKEROOT_FAKENET */
 
+/*
+    This is the new protocol for information exchange with faked.
+    Let's define it by example:
+
+    FAKED_GET (FAKED_STAT(st, __STAT_VER), FAKED_FILE(filepath))
+
+    In here we pass a stat structure to faked for patching. The structure
+    is stat (not stat64) of the particular version (__STAT_VER). Assume we
+    had a stat64 structure instead:
+
+    FAKED_GET (FAKED_STAT64(st64, __STAT_VER), FAKED_FILE(filepath)))
+
+    The daemon can use st_ino member of the passed stat structure to lookup
+    internal tables as faked always did. The daemon is also given a filepath
+    so it has some exciting oportunities like storing data in extended attrs.
+    Instead of using FAKED_FILE to identify the particular file object
+    one could use FAKED_FD, FAKED_LINK, FAKED_AT and FAKED_FTSENT, ex:
+
+    FAKED_SET (chown_func, FAKED_STAT64(st64, __STAT_VER), FAKED_FD(fd))
+
+    In this example we are also showcasing FAKED_SET operation.
+
+    Last but not least both FAKED_GET and FAKED_SET return 0 if succeeded
+    and -1 if failed.
+ */
+#define FAKED_GET(args,extra) _FAKED_GET(args)
+#define FAKED_SET(func,args,extra) _FAKED_SET(func,args)
+
+#ifdef STUPID_ALPHA_HACK
+#define _FAKED_GET(suffix,st,ver)  \
+    (_FAKED_GET ## suffix(st,ver), 0)
+#define _FAKED_SET(func,suffix,st,ver) \
+    (_FAKED_SET ## suffix(st,func,ver), 0)
+#else
+#define _FAKED_GET(suffix,st,ver)  \
+    (_FAKED_GET ## suffix(st), 0)
+#define _FAKED_SET(func,suffix,st,ver) \
+    (_FAKED_SET ## suffix(st,func), 0)
+#endif
+
+#define FAKED_STAT(st, ver) _FAKED_STAT,(st),(ver)
+#define FAKED_STAT64(st, ver) _FAKED_STAT64,(st),(ver)
+
+#define FAKED_FD(fd)
+#define FAKED_FILE(path)
+#define FAKED_LINK(path)
+#define FAKED_AT(dirfd,path,options)
+#define FAKED_FTSENT(ftsent)
+
+#define _FAKED_GET_FAKED_STAT       send_get_stat
+#define _FAKED_GET_FAKED_STAT64     send_get_stat64
+#define _FAKED_SET_FAKED_STAT       send_stat
+#define _FAKED_SET_FAKED_STAT64     send_stat64
+
+#define FAKED_SET_NEEDS_STAT 1
+
 #endif

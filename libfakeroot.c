@@ -73,6 +73,7 @@
 #define INT_NEXT_FSTAT(a,b) NEXT_FSTAT64(_STAT_VER,a,b)
 #define INT_NEXT_FSTATAT(a,b,c,d) NEXT_FSTATAT64(_STAT_VER,a,b,c,d)
 #define INT_SEND_STAT(a,b) SEND_STAT64(a,b,_STAT_VER)
+#define INT_FAKED_STAT(st) FAKED_STAT64(st,_STAT_VER)
 #else
 #define INT_STRUCT_STAT struct stat
 #define INT_NEXT_STAT(a,b) NEXT_STAT(_STAT_VER,a,b)
@@ -80,6 +81,7 @@
 #define INT_NEXT_FSTAT(a,b) NEXT_FSTAT(_STAT_VER,a,b)
 #define INT_NEXT_FSTATAT(a,b,c,d) NEXT_FSTATAT(_STAT_VER,a,b,c,d)
 #define INT_SEND_STAT(a,b) SEND_STAT(a,b,_STAT_VER)
+#define INT_FAKED_STAT(st) FAKED_STAT(st,_STAT_VER)
 #endif
 
 #include <stdlib.h>
@@ -575,8 +577,7 @@ int WRAP_LSTAT LSTAT_ARG(int ver,
   r=NEXT_LSTAT(ver, file_name, statbuf);
   if(r)
     return -1;
-  SEND_GET_STAT(statbuf, ver);
-  return 0;
+  return FAKED_GET (FAKED_STAT(statbuf, ver), FAKED_LINK(file_name));
 }
 
 
@@ -593,8 +594,7 @@ int WRAP_STAT STAT_ARG(int ver,
   r=NEXT_STAT(ver, file_name, st);
   if(r)
     return -1;
-  SEND_GET_STAT(st,ver);
-  return 0;
+  return FAKED_GET (FAKED_STAT(st, ver), FAKED_FILE(file_name));
 }
 
 
@@ -613,8 +613,7 @@ int WRAP_FSTAT FSTAT_ARG(int ver,
   r=NEXT_FSTAT(ver, fd, st);
   if(r)
     return -1;
-  SEND_GET_STAT(st,ver);
-  return 0;
+  return FAKED_GET (FAKED_STAT(st, ver), FAKED_FD(fd));
 }
 
 #ifdef HAVE_FSTATAT
@@ -630,8 +629,7 @@ int WRAP_FSTATAT FSTATAT_ARG(int ver,
   r=NEXT_FSTATAT(ver, dir_fd, path, st, flags);
   if(r)
     return -1;
-  SEND_GET_STAT(st,ver);
-  return 0;
+  return FAKED_GET (FAKED_STAT(st, ver), FAKED_AT(dir_fd, path, flags));
 }
 #endif /* HAVE_FSTATAT */
 
@@ -653,8 +651,7 @@ int WRAP_LSTAT64 LSTAT64_ARG (int ver,
   if(r)
     return -1;
 
-  SEND_GET_STAT64(st,ver);
-  return 0;
+  return FAKED_GET (FAKED_STAT64(st, ver), FAKED_LINK(file_name));
 }
 
 
@@ -671,8 +668,7 @@ int WRAP_STAT64 STAT64_ARG(int ver,
   r=NEXT_STAT64(ver,file_name,st);
   if(r)
     return -1;
-  SEND_GET_STAT64(st,ver);
-  return 0;
+  return FAKED_GET (FAKED_STAT64(st, ver), FAKED_FILE(file_name));
 }
 
 
@@ -689,9 +685,7 @@ int WRAP_FSTAT64 FSTAT64_ARG(int ver,
   r=NEXT_FSTAT64(ver, fd, st);
   if(r)
     return -1;
-  SEND_GET_STAT64(st,ver);
-
-  return 0;
+  return FAKED_GET (FAKED_STAT64(st, ver), FAKED_FD(fd));
 }
 
 #ifdef HAVE_FSTATAT
@@ -707,8 +701,7 @@ int WRAP_FSTATAT64 FSTATAT64_ARG(int ver,
   r=NEXT_FSTATAT64(ver, dir_fd, path, st, flags);
   if(r)
     return -1;
-  SEND_GET_STAT64(st,ver);
-  return 0;
+  return FAKED_GET (FAKED_STAT64(st, ver), FAKED_AT(dir_fd, path, flags));
 }
 #endif /* HAVE_FSTATAT */
 
@@ -751,6 +744,7 @@ int chown(const char *path, uid_t owner, gid_t group){
     fprintf(stderr, "chown path %s owner %d group %d\n", path, owner, group);
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
+#ifdef FAKED_SET_NEEDS_STAT
 #ifdef LCHOWN_SUPPORT
   /*chown(sym-link) works on the target of the symlink if lchown is
     present and enabled.*/
@@ -762,9 +756,19 @@ int chown(const char *path, uid_t owner, gid_t group){
 
   if(r)
     return r;
+#endif
+
   st.st_uid=owner;
   st.st_gid=group;
-  INT_SEND_STAT(&st,chown_func);
+#ifdef LCHOWN_SUPPORT
+  r = FAKED_SET (chown_func, INT_FAKED_STAT(&st), FAKED_FILE(path));
+#else
+  r = FAKED_SET (chown_func, INT_FAKED_STAT(&st), FAKED_LINK(path));
+#endif
+
+  if (r)
+      return r;
+
   if(!dont_try_chown())
     r=next_lchown(path,owner,group);
   else
@@ -786,12 +790,15 @@ int lchown(const char *path, uid_t owner, gid_t group){
     fprintf(stderr, "lchown path %s owner %d group %d\n", path, owner, group);
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
+#ifdef FAKED_SET_NEEDS_STAT
   r=INT_NEXT_LSTAT(path, &st);
   if(r)
     return r;
+#endif
   st.st_uid=owner;
   st.st_gid=group;
-  INT_SEND_STAT(&st,chown_func);
+  if (FAKED_SET (chown_func, INT_FAKED_STAT(&st), FAKED_LINK(path)) == -1)
+      return -1;
   if(!dont_try_chown())
     r=next_lchown(path,owner,group);
   else
@@ -807,13 +814,16 @@ int fchown(int fd, uid_t owner, gid_t group){
   INT_STRUCT_STAT st;
   int r;
 
+#ifdef FAKED_SET_NEEDS_STAT
   r=INT_NEXT_FSTAT(fd, &st);
   if(r)
     return r;
+#endif
 
   st.st_uid=owner;
   st.st_gid=group;
-  INT_SEND_STAT(&st, chown_func);
+  if (FAKED_SET (chown_func, INT_FAKED_STAT(&st), FAKED_FD(fd)) == -1)
+      return -1;
 
   if(!dont_try_chown())
     r=next_fchown(fd,owner,group);
@@ -833,14 +843,17 @@ int fchownat(int dir_fd, const char *path, uid_t owner, gid_t group, int flags) 
   /* If AT_SYMLINK_NOFOLLOW is set in the fchownat call it should
      be when we stat it. */
   INT_STRUCT_STAT st;
-  r=INT_NEXT_FSTATAT(dir_fd, path, &st, (flags & AT_SYMLINK_NOFOLLOW));
 
+#ifdef FAKED_SET_NEEDS_STAT
+  r=INT_NEXT_FSTATAT(dir_fd, path, &st, (flags & AT_SYMLINK_NOFOLLOW));
   if(r)
     return(r);
+#endif
 
   st.st_uid=owner;
   st.st_gid=group;
-  INT_SEND_STAT(&st,chown_func);
+  if (FAKED_SET (chown_func, INT_FAKED_STAT(&st), FAKED_AT(dir_fd, path, flags)) == -1)
+    return -1;
 
   if(!dont_try_chown())
     r=next_fchownat(dir_fd,path,owner,group,flags);
@@ -864,13 +877,16 @@ int chmod(const char *path, mode_t mode){
     fprintf(stderr, "chmod path %s\n", path);
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
+
+  /* stat is needed here hence no FAKED_SET_NEEDS_STAT check */
   r=INT_NEXT_STAT(path, &st);
   if(r)
     return r;
 
   st.st_mode=(mode&ALLPERMS)|(st.st_mode&~ALLPERMS);
 
-  INT_SEND_STAT(&st, chmod_func);
+  if (FAKED_SET (chmod_func, INT_FAKED_STAT(&st), FAKED_FILE(path)) == -1)
+    return -1;
 
   /* if a file is unwritable, then root can still write to it
      (no matter who owns the file). If we are fakeroot, the only
@@ -904,13 +920,16 @@ int lchmod(const char *path, mode_t mode){
     fprintf(stderr, "lchmod path %s\n", path);
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
+
+  /* stat is needed here hence no FAKED_SET_NEEDS_STAT check */
   r=INT_NEXT_LSTAT(path, &st);
   if(r)
     return r;
 
   st.st_mode=(mode&ALLPERMS)|(st.st_mode&~ALLPERMS);
 
-  INT_SEND_STAT(&st, chmod_func);
+  if (FAKED_SET (chmod_func, INT_FAKED_STAT(&st), FAKED_LINK(path)) == -1)
+      return -1;
 
   /* see chmod() for comment */
   mode |= 0600;
@@ -938,13 +957,16 @@ int fchmod(int fd, mode_t mode){
     fprintf(stderr, "fchmod fd %d\n", fd);
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
+
+  /* stat is needed here hence no FAKED_SET_NEEDS_STAT check */
   r=INT_NEXT_FSTAT(fd, &st);
 
   if(r)
     return(r);
 
   st.st_mode=(mode&ALLPERMS)|(st.st_mode&~ALLPERMS);
-  INT_SEND_STAT(&st,chmod_func);
+  if (FAKED_SET (chmod_func, INT_FAKED_STAT(&st), FAKED_FD(fd)) == -1)
+    return -1;
 
   /* see chmod() for comment */
   mode |= 0600;
@@ -968,6 +990,7 @@ int fchmodat(int dir_fd, const char *path, mode_t mode, int flags) {
   int r;
   INT_STRUCT_STAT st;
 
+  /* stat is needed here hence no FAKED_SET_NEEDS_STAT check */
   /* If AT_SYMLINK_NOFOLLOW is set in the fchownat call it should
      be when we stat it. */
   r=INT_NEXT_FSTATAT(dir_fd, path, &st, flags & AT_SYMLINK_NOFOLLOW);
@@ -976,7 +999,8 @@ int fchmodat(int dir_fd, const char *path, mode_t mode, int flags) {
     return(r);
 
   st.st_mode=(mode&ALLPERMS)|(st.st_mode&~ALLPERMS);
-  INT_SEND_STAT(&st,chmod_func);
+  if (FAKED_SET (chmod_func, INT_FAKED_STAT(&st), FAKED_AT(dir_fd, path, flags)) == -1)
+    return -1;
 
   /* see chmod() for comment */
   mode |= 0600;
@@ -1015,8 +1039,9 @@ int WRAP_MKNOD MKNOD_ARG(int ver UNUSED,
     return -1;
 
   close(fd);
-  /* get the inode, to communicate with faked */
 
+  /* stat is needed here hence no FAKED_SET_NEEDS_STAT check */
+  /* get the inode, to communicate with faked */
   r=INT_NEXT_LSTAT(pathname, &st);
 
   if(r)
@@ -1025,9 +1050,7 @@ int WRAP_MKNOD MKNOD_ARG(int ver UNUSED,
   st.st_mode= mode & ~old_mask;
   st.st_rdev= XMKNOD_FRTH_ARG dev;
 
-  INT_SEND_STAT(&st,mknod_func);
-
-  return 0;
+  return FAKED_SET (mknod_func, INT_FAKED_STAT(&st), FAKED_FILE(pathname));
 }
 
 #ifdef HAVE_FSTATAT
@@ -1053,8 +1076,9 @@ int WRAP_MKNODAT MKNODAT_ARG(int ver UNUSED,
     return -1;
 
   close(fd);
-  /* get the inode, to communicate with faked */
 
+  /* stat is needed here hence no FAKED_SET_NEEDS_STAT check */
+  /* get the inode, to communicate with faked */
   /* The only known flag is AT_SYMLINK_NOFOLLOW and
      we don't want that here. */
   r=INT_NEXT_FSTATAT(dir_fd, pathname, &st, 0);
@@ -1065,9 +1089,7 @@ int WRAP_MKNODAT MKNODAT_ARG(int ver UNUSED,
   st.st_mode= mode & ~old_mask;
   st.st_rdev= XMKNODAT_FIFTH_ARG dev;
 
-  INT_SEND_STAT(&st,mknod_func);
-
-  return 0;
+  return FAKED_SET (mknod_func, INT_FAKED_STAT(&st), FAKED_AT(dir_fd, pathname, 0));
 }
 #endif /* HAVE_MKNODAT */
 #endif /* HAVE_FSTATAT */
@@ -1093,16 +1115,15 @@ int mkdir(const char *path, mode_t mode){
   /* mode|0700: see comment in the chown() function above */
   if(r)
     return -1;
-  r=INT_NEXT_STAT(path, &st);
 
+  /* stat is needed here hence no FAKED_SET_NEEDS_STAT check */
+  r=INT_NEXT_STAT(path, &st);
   if(r)
     return -1;
 
   st.st_mode=(mode&~old_mask&ALLPERMS)|(st.st_mode&~ALLPERMS)|S_IFDIR;
 
-  INT_SEND_STAT(&st, chmod_func);
-
-  return 0;
+  return FAKED_SET (chmod_func, INT_FAKED_STAT(&st), FAKED_FILE(path));
 }
 
 #ifdef HAVE_FSTATAT
@@ -1123,16 +1144,15 @@ int mkdirat(int dir_fd, const char *path, mode_t mode){
   /* mode|0700: see comment in the chown() function above */
   if(r)
     return -1;
-  r=INT_NEXT_FSTATAT(dir_fd, path, &st, 0);
 
+  /* stat is needed here hence no FAKED_SET_NEEDS_STAT check */
+  r=INT_NEXT_FSTATAT(dir_fd, path, &st, 0);
   if(r)
     return -1;
 
   st.st_mode=(mode&~old_mask&ALLPERMS)|(st.st_mode&~ALLPERMS)|S_IFDIR;
 
-  INT_SEND_STAT(&st, chmod_func);
-
-  return 0;
+  return FAKED_SET (chmod_func, INT_FAKED_STAT(&st), FAKED_AT(dir_fd, path, 0));
 }
 #endif /* HAVE_MKDIRAT */
 #endif /* HAVE_FSTATAT */
@@ -1156,7 +1176,6 @@ int unlink(const char *pathname){
   int r;
   INT_STRUCT_STAT st;
 
-
   r=INT_NEXT_LSTAT(pathname, &st);
   if(r)
     return -1;
@@ -1166,9 +1185,7 @@ int unlink(const char *pathname){
   if(r)
     return -1;
 
-  INT_SEND_STAT(&st, unlink_func);
-
-  return 0;
+  return FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_LINK(pathname));
 }
 
 #ifdef HAVE_FSTATAT
@@ -1176,6 +1193,7 @@ int unlink(const char *pathname){
 int unlinkat(int dir_fd, const char *pathname, int flags){
   int r;
   INT_STRUCT_STAT st;
+
   r=INT_NEXT_FSTATAT(dir_fd, pathname, &st, (flags&~AT_REMOVEDIR) | AT_SYMLINK_NOFOLLOW);
   if(r)
     return -1;
@@ -1185,9 +1203,7 @@ int unlinkat(int dir_fd, const char *pathname, int flags){
   if(r)
     return -1;
 
-  INT_SEND_STAT(&st, unlink_func);
-
-  return 0;
+  return FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_AT(dir_fd, pathname, AT_SYMLINK_NOFOLLOW));
 }
 #endif /* HAVE_UNLINKAT */
 #endif /* HAVE_FSTATAT */
@@ -1207,9 +1223,7 @@ int rmdir(const char *pathname){
   if(r)
     return -1;
 
-  INT_SEND_STAT(&st,unlink_func);
-
-  return 0;
+  return FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_LINK(pathname));
 }
 
 /*
@@ -1226,9 +1240,8 @@ int remove(const char *pathname){
   r=next_remove(pathname);
   if(r)
     return -1;
-  INT_SEND_STAT(&st,unlink_func);
 
-  return r;
+  return FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_LINK(pathname));
 }
 
 /*
@@ -1256,9 +1269,9 @@ int rename(const char *oldpath, const char *newpath){
   if(s)
     return -1;
   if(!r)
-    INT_SEND_STAT(&st,unlink_func);
+    r = FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_LINK(newpath));
 
-  return 0;
+  return r;
 }
 
 #ifdef HAVE_FSTATAT
@@ -1280,9 +1293,9 @@ int renameat(int olddir_fd, const char *oldpath,
   if(s)
     return -1;
   if(!r)
-    INT_SEND_STAT(&st,unlink_func);
+    r = FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_AT(newdir_fd, newpath, AT_SYMLINK_NOFOLLOW));
 
-  return 0;
+  return r;
 }
 #endif /* HAVE_RENAMEAT */
 #endif /* HAVE_FSTATAT */
@@ -1550,11 +1563,11 @@ FTSENT *fts_read(FTS *ftsp) {
   }
 #endif /* LIBFAKEROOT_DEBUGGING */
   r=next_fts_read(ftsp);
-  if(r && r->fts_statp) {  /* Should we bother checking fts_info here? */
+  if(r && r->fts_statp && r->fts_info != FTS_NSOK) {
 # if defined(STAT64_SUPPORT) && !defined(__APPLE__)
-    SEND_GET_STAT64(r->fts_statp, _STAT_VER);
+    FAKED_GET (FAKED_STAT64(r->fts_statp, _STAT_VER), FAKED_FTSENT(r));
 # else
-    SEND_GET_STAT(r->fts_statp, _STAT_VER);
+    FAKED_GET (FAKED_STAT(r->fts_statp, _STAT_VER), FAKED_FTSENT(r));
 # endif
   }
 
@@ -1573,11 +1586,11 @@ FTSENT *fts_children(FTS *ftsp, int options) {
 #endif /* LIBFAKEROOT_DEBUGGING */
   first=next_fts_children(ftsp, options);
   for(r = first; r; r = r->fts_link) {
-    if(r && r->fts_statp) {  /* Should we bother checking fts_info here? */
+    if(r && r->fts_statp && r->fts_info != FTS_NSOK) {
 # if defined(STAT64_SUPPORT) && !defined(__APPLE__)
-      SEND_GET_STAT64(r->fts_statp, _STAT_VER);
+      FAKED_GET (FAKED_STAT64(r->fts_statp, _STAT_VER), FAKED_FTSENT(r));
 # else
-      SEND_GET_STAT(r->fts_statp, _STAT_VER);
+      FAKED_GET (FAKED_STAT(r->fts_statp, _STAT_VER), FAKED_FTSENT(r));
 # endif
     }
   }

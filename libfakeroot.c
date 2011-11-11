@@ -481,7 +481,7 @@ static int set_faked_egid(gid_t egid) {
   return 0;
 }
 
-static int set_faked_reuid(uid_t ruid, uid_t euid) {
+int set_faked_reuid(uid_t ruid, uid_t euid) {
   read_uids();
   if (ruid != (uid_t)-1 || euid != (uid_t)-1)
     faked_saved_uid = faked_effective_uid;
@@ -493,7 +493,7 @@ static int set_faked_reuid(uid_t ruid, uid_t euid) {
   return write_uids();
 }
 
-static int set_faked_regid(gid_t rgid, gid_t egid) {
+int set_faked_regid(gid_t rgid, gid_t egid) {
   read_gids();
   if (rgid != (gid_t)-1 || egid != (gid_t)-1)
     faked_saved_gid = faked_effective_gid;
@@ -550,7 +550,7 @@ static gid_t set_faked_fsgid(gid_t fsgid) {
 #endif
 
 
-static int dont_try_chown(){
+int dont_try_chown(){
   static int inited=0;
   static int donttry;
 

@@ -90,6 +90,9 @@
 #ifdef HAVE_INTTYPES_H
 # include <inttypes.h>
 #endif
+#if HAVE_FTS_H
+#include <fts.h>
+#endif /* HAVE_FTS_H */
 
 #ifndef FAKEROOT_FAKENET
 # define FAKEROOTKEY_ENV          "FAKEROOTKEY"
@@ -203,6 +206,67 @@ extern int msg_get;
 extern int sem_id;
 #endif /* ! FAKEROOT_FAKENET */
 
+
+#define FAKEROOTUID_XATTR    "FAKEROOTUID"
+#define FAKEROOTGID_XATTR    "FAKEROOTGID"
+#define FAKEROOTMODE_XATTR   "FAKEROOTMODE"
+#define FAKEROOTRDEV_XATTR   "FAKEROOTRDEV"
+
+enum faked_stat_type
+{
+    FAKED_STAT_STAT = 1,
+    FAKED_STAT_STAT64 = 2
+};
+
+struct faked_stat
+{
+    int type;
+    union
+    {
+        struct stat64 *stat64;
+        struct stat *stat;
+    }
+    stat;
+};
+
+struct faked_finfo
+{
+    int type;
+    union
+    {
+        int fd;
+        const char *path;
+        struct
+        {
+            int dir_fd;
+            const char *path;
+            int options;
+        }
+        at;
+        FTSENT *ftsent;
+    }
+    info;
+};
+
+enum faked_finfo_type
+{
+    FAKED_FINFO_FD = 1,
+    FAKED_FINFO_FILE = 2,
+    FAKED_FINFO_LINK = 3,
+    FAKED_FINFO_AT = 4,
+    FAKED_FINFO_FTSENT = 5
+};
+
+int faked_get(struct faked_stat, struct faked_finfo);
+int faked_set(int, struct faked_stat, struct faked_finfo);
+struct faked_stat faked_stat(struct stat *);
+struct faked_stat faked_stat64(struct stat64 *);
+struct faked_finfo faked_fd(int);
+struct faked_finfo faked_file(const char *);
+struct faked_finfo faked_link(const char *);
+struct faked_finfo faked_at(int, const char *, int);
+struct faked_finfo faked_ftsent(FTSENT *);
+
 /*
     This is the new protocol for information exchange with faked.
     Let's define it by example:
@@ -228,6 +292,8 @@ extern int sem_id;
     Last but not least both FAKED_GET and FAKED_SET return 0 if succeeded
     and -1 if failed.
  */
+#if 1
+
 #define FAKED_GET(args,extra) _FAKED_GET(args)
 #define FAKED_SET(func,args,extra) _FAKED_SET(func,args)
 
@@ -258,5 +324,23 @@ extern int sem_id;
 #define _FAKED_SET_FAKED_STAT64     send_stat64
 
 #define FAKED_SET_NEEDS_STAT 1
+
+#else
+
+#define FAKED_GET(st,finfo)            faked_get(st,finfo)
+#define FAKED_SET(fn,st,finfo)         faked_set(fn,st,finfo)
+
+#define FAKED_STAT(st,ver)             faked_stat(st)
+#define FAKED_STAT64(st,ver)           faked_stat64(st)
+
+#define FAKED_FD(fd)                   faked_fd(fd)
+#define FAKED_FILE(path)               faked_file(path)
+#define FAKED_LINK(path)               faked_link(path)
+#define FAKED_AT(dirfd,path,options)   faked_at(dirfd,path,options)
+#define FAKED_FTSENT(ftsent)           faked_ftsent(ftsent)
+
+#undef FAKED_SET_NEEDS_STAT
+
+#endif
 
 #endif

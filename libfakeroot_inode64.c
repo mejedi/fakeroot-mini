@@ -90,9 +90,8 @@ int fstat$INODE64(int fd,
   r=next_fstat$INODE64(fd, st);
   if(r)
     return -1;
-  send_get_stat64((struct stat64 *)st);
 
-  return FAKED_GET (FAKED_STAT64((struct stat64 *)st, 0), FAKED_FD(FD));
+  return FAKED_GET (FAKED_STAT64((struct stat64 *)st, 0), FAKED_FD(fd));
 }
 
 #ifdef HAVE_FTS_READ

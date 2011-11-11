@@ -149,6 +149,7 @@ struct next_wrap_st{
   char *name;
 };
 
+#ifndef __APPLE__
 void *get_libc(){
 
 #ifndef RTLD_NEXT
@@ -166,6 +167,7 @@ void *get_libc(){
 #endif
 }
 void load_library_symbols(void);
+#endif /* __APPLE__ */
 
 int fakeroot_disabled = 0;
 #ifdef LIBFAKEROOT_DEBUGGING
@@ -180,7 +182,7 @@ int fakeroot_debug = 0;
 #include "wrapdef.h"
 #include "wrapstruct.h"
 
-
+#ifndef __APPLE__
 void load_library_symbols(void){
   /* this function loads all original functions from the C library.
      This function is only called once.
@@ -217,7 +219,7 @@ void load_library_symbols(void){
     }
   }
 }
-
+#endif /* __APPLE__ */
 
 /*
  * Fake implementations for the setuid family of functions.

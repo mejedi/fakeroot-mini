@@ -1172,6 +1172,7 @@ int mkdirat(int dir_fd, const char *path, mode_t mode){
    as `admin', unless it's informed about the removal of the inode.
 */
 
+#ifndef FAKEROOT_MINI
 int unlink(const char *pathname){
   int r;
   INT_STRUCT_STAT st;
@@ -1187,7 +1188,9 @@ int unlink(const char *pathname){
 
   return FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_LINK(pathname));
 }
+#endif /* !defined(FAKEROOT_MINI) */
 
+#ifndef FAKEROOT_MINI
 #ifdef HAVE_FSTATAT
 #ifdef HAVE_UNLINKAT
 int unlinkat(int dir_fd, const char *pathname, int flags){
@@ -1207,11 +1210,13 @@ int unlinkat(int dir_fd, const char *pathname, int flags){
 }
 #endif /* HAVE_UNLINKAT */
 #endif /* HAVE_FSTATAT */
+#endif /* !defined(FAKEROOT_MINI) */
 
 /*
   See the `remove funtions:' comments above for more info on
   these remove function wrappers.
 */
+#ifndef FAKEROOT_MINI
 int rmdir(const char *pathname){
   int r;
   INT_STRUCT_STAT st;
@@ -1225,11 +1230,13 @@ int rmdir(const char *pathname){
 
   return FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_LINK(pathname));
 }
+#endif /* !defined(FAKEROOT_MINI) */
 
 /*
   See the `remove funtions:' comments above for more info on
   these remove function wrappers.
 */
+#ifndef FAKEROOT_MINI
 int remove(const char *pathname){
   int r;
   INT_STRUCT_STAT st;
@@ -1243,6 +1250,7 @@ int remove(const char *pathname){
 
   return FAKED_SET (unlink_func, INT_FAKED_STAT(&st), FAKED_LINK(pathname));
 }
+#endif /* !defined(FAKEROOT_MINI) */
 
 /*
   if the second argument to the rename() call points to an
@@ -1253,6 +1261,7 @@ int remove(const char *pathname){
   these remove function wrappers.
 */
 
+#ifndef FAKEROOT_MINI
 int rename(const char *oldpath, const char *newpath){
   int r,s;
   INT_STRUCT_STAT st;
@@ -1273,7 +1282,9 @@ int rename(const char *oldpath, const char *newpath){
 
   return r;
 }
+#endif /* !defined(FAKEROOT_MINI) */
 
+#ifndef FAKEROOT_MINI
 #ifdef HAVE_FSTATAT
 #ifdef HAVE_RENAMEAT
 int renameat(int olddir_fd, const char *oldpath,
@@ -1299,6 +1310,7 @@ int renameat(int olddir_fd, const char *oldpath,
 }
 #endif /* HAVE_RENAMEAT */
 #endif /* HAVE_FSTATAT */
+#endif /* !defined(FAKEROOT_MINI) */
 
 
 #ifdef FAKEROOT_FAKENET

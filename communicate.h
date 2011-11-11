@@ -206,7 +206,7 @@ extern int msg_get;
 extern int sem_id;
 #endif /* ! FAKEROOT_FAKENET */
 
-
+#ifdef FAKEROOT_MINI
 #define FAKEROOTUID_XATTR    "FAKEROOTUID"
 #define FAKEROOTGID_XATTR    "FAKEROOTGID"
 #define FAKEROOTMODE_XATTR   "FAKEROOTMODE"
@@ -266,6 +266,7 @@ struct faked_finfo faked_file(const char *);
 struct faked_finfo faked_link(const char *);
 struct faked_finfo faked_at(int, const char *, int);
 struct faked_finfo faked_ftsent(FTSENT *);
+#endif /* FAKEROOT_MINI */
 
 /*
     This is the new protocol for information exchange with faked.
@@ -292,7 +293,7 @@ struct faked_finfo faked_ftsent(FTSENT *);
     Last but not least both FAKED_GET and FAKED_SET return 0 if succeeded
     and -1 if failed.
  */
-#if 1
+#if !defined(FAKEROOT_MINI)
 
 #define FAKED_GET(args,extra) _FAKED_GET(args)
 #define FAKED_SET(func,args,extra) _FAKED_SET(func,args)

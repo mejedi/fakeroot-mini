@@ -50,6 +50,9 @@ libfakeroot.lo:libfakeroot.c wrapdef.h wrapstruct.h wraptmpf.h
 fakerootconfig.h: ./config.status
 	CONFIG_FILES= CONFIG_HEADERS= /bin/sh ./config.status
 
+lib_LTLIBRARIES+=libfakermini-1.0.0.la
+libfakermini_1_0_0_la_SOURCES=libfakeroot.c libfakeroot_inode64.c libfakeroot_unix2003.c communicate_stub.c
+libfakermini_1_0_0_la_CFLAGS=-DFAKEROOT_MINI=1
 
 #Local variables:
 #mode: makefile

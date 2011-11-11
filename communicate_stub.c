@@ -10,7 +10,12 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/acl.h>
 #include <sys/xattr.h>
+
+#include "wrapped.h"
+#include "wraptmpf.h"
+#include "wrapdef.h"
 
 
 static int getxattr_helper(const struct faked_finfo *fi, const char *name, intmax_t *pvalue)
@@ -21,18 +26,18 @@ static int getxattr_helper(const struct faked_finfo *fi, const char *name, intma
 
     switch (fi->type) {
     case FAKED_FINFO_FD:
-        sz = fgetxattr(fi->info.fd, name, buf, sizeof buf, 0, 0);
+        sz = next_fgetxattr(fi->info.fd, name, buf, sizeof buf, 0, 0);
         break;
     case FAKED_FINFO_FILE:
-        sz = getxattr(fi->info.path, name, buf, sizeof buf, 0, 0);
+        sz = next_getxattr(fi->info.path, name, buf, sizeof buf, 0, 0);
         break;
     case FAKED_FINFO_LINK:
-        sz = getxattr(fi->info.path, name, buf, sizeof buf, 0, XATTR_NOFOLLOW);
+        sz = next_getxattr(fi->info.path, name, buf, sizeof buf, 0, XATTR_NOFOLLOW);
         break;
     case FAKED_FINFO_FTSENT:
         fts_info = fi->info.ftsent->fts_info;
-        sz = getxattr(fi->info.ftsent->fts_accpath, name, buf, sizeof buf, 0,
-                      fts_info == FTS_SL || fts_info == FTS_SLNONE ? XATTR_NOFOLLOW : 0);
+        sz = next_getxattr(fi->info.ftsent->fts_accpath, name, buf, sizeof buf, 0,
+                           fts_info == FTS_SL || fts_info == FTS_SLNONE ? XATTR_NOFOLLOW : 0);
         break;
     default:
         fprintf(stderr, "unexpected finfo type (%d)\n", fi->type);
@@ -61,11 +66,11 @@ static int setxattr_helper(const struct faked_finfo *fi, const char *name, intma
 
     switch (fi->type) {
     case FAKED_FINFO_FD:
-        return fsetxattr(fi->info.fd, name, buf, strlen(buf), 0, 0);
+        return next_fsetxattr(fi->info.fd, name, buf, strlen(buf), 0, 0);
     case FAKED_FINFO_FILE:
-        return setxattr(fi->info.path, name, buf, strlen(buf), 0, 0);
+        return next_setxattr(fi->info.path, name, buf, strlen(buf), 0, 0);
     case FAKED_FINFO_LINK:
-        return setxattr(fi->info.path, name, buf, strlen(buf), 0, XATTR_NOFOLLOW);
+        return next_setxattr(fi->info.path, name, buf, strlen(buf), 0, XATTR_NOFOLLOW);
     case FAKED_FINFO_FTSENT:
     default:
         fprintf(stderr, "unexpected finfo type (%d)\n", fi->type);

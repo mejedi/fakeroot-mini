@@ -183,3 +183,14 @@ fts_children$INODE64;FTSENT *;(FTS *ftsp, int options);(ftsp, options)
 #endif
 #endif /* ifdef __APPLE__ */
 #endif /* HAVE_FTS_CHILDREN */
+
+#ifdef FAKEROOT_MINI
+getxattr;ssize_t;(const char *path, const char *name, void *value, size_t size, u_int32_t position, int options);(path, name, value, size, position, options)
+fgetxattr;ssize_t;(int fd, const char *name, void *value, size_t size, u_int32_t position, int options);(fd, name, value, size, position, options)
+listxattr;ssize_t;(const char *path, char *namebuf, size_t size, int options);(path, namebuf, size, options)
+flistxattr;ssize_t;(int fd, char *namebuf, size_t size, int options);(fd, namebuf, size, options)
+setxattr;int;(const char *path, const char *name, const void *value, size_t size, u_int32_t position, int options);(path, name, value, size, position, options)
+fsetxattr;int;(int fd, const char *name, const void *value, size_t size, u_int32_t position, int options);(fd, name, value, size, position, options)
+removexattr;int;(const char *path, const char *name, int options);(path, name, options)
+fremovexattr;int;(int fd, const char *name, int options);(fd, name, options)
+#endif /* defined(FAKEROOT_MINI) */

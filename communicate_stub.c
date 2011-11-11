@@ -55,6 +55,7 @@ static int getxattr_helper(const struct faked_finfo *fi, const char *name, intma
         }
     }
 
+    buf[sz] = '\0';
     *pvalue = strtoimax(buf, 0, 10);
     return 0;
 }
@@ -139,7 +140,7 @@ int faked_get(struct faked_stat st, struct faked_finfo fi)
         || getxattr_helper(&fi, FAKEROOTMODE_XATTR, &mode) == -1
     )
         goto fail;
-    if (mode & (S_IFCHR|S_IFBLK))
+    if (mode != -1 && (mode & (S_IFCHR|S_IFBLK)))
         if (getxattr_helper(&fi, FAKEROOTRDEV_XATTR, &rdev) == -1)
             goto fail;
 
@@ -170,7 +171,7 @@ int faked_get(struct faked_stat st, struct faked_finfo fi)
             st.stat.stat64->st_rdev = rdev;
         break;
     }
-    if (fi.type == FAKED_FINFO_FTSENT && (mode & (S_IFCHR|S_IFBLK))) {
+    if (fi.type == FAKED_FINFO_FTSENT && mode != -1 && (mode & (S_IFCHR|S_IFBLK))) {
         fi.info.ftsent->fts_info = FTS_DEFAULT;
     }
     return 0;

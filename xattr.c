@@ -75,7 +75,7 @@ ssize_t listxattr(const char *path, char *namebuf, size_t size, int options)
 {
     ssize_t st = next_listxattr(path, namebuf, size, options);
     if (st != -1) {
-        if (namebuf)
+        if (namebuf && size)
             st = filter_attrlist(namebuf, st);
         else {
             /*
@@ -85,11 +85,19 @@ ssize_t listxattr(const char *path, char *namebuf, size_t size, int options)
              * call listxattr with namebuf=NULL to check for xattr
              * presence (ex: ls -l).
              */
-            ssize_t st2 = my_listxattr_estimate(path, options);
-            if (st2 != -1)
-                st = st2;
+            if (my_listxattr_estimate(path, options) == 0)
+                st = 0;
         }
     }
+    /*
+     * If they ask for xattr listing with a valid buffer of a small size
+     * but there were FAKEROOT* xattrs hence the call failed with ERANGE
+     * we don't treat this as error.
+     */
+    if (st == -1 && namebuf && size>0 && size<=LISTXATTRBUF_SZ && errno == ERANGE
+        && my_listxattr_estimate(path, options) == 0
+    )
+        st = 0;
     return st;
 }
 
@@ -114,11 +122,13 @@ ssize_t flistxattr(int fd, char *namebuf, size_t size, int options)
         if (namebuf)
             st = filter_attrlist(namebuf, st);
         else {
-            ssize_t st2 = my_flistxattr_estimate(fd, options);
-            if (st2 != -1)
-                st = st2;
+            if (my_flistxattr_estimate(fd, options) == 0)
+                st = 0;
         }
     }
+    if (st == -1 && namebuf && size>0 && size<=LISTXATTRBUF_SZ && errno == ERANGE
+        && my_flistxattr_estimate(fd, options) == 0
+    )
     return st;
 }
 

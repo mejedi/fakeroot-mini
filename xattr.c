@@ -129,6 +129,7 @@ ssize_t flistxattr(int fd, char *namebuf, size_t size, int options)
     if (st == -1 && namebuf && size>0 && size<=LISTXATTRBUF_SZ && errno == ERANGE
         && my_flistxattr_estimate(fd, options) == 0
     )
+        st = 0;
     return st;
 }
 

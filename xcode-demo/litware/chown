@@ -1,0 +1,11 @@
+#! /bin/bash
+# This script invokes /usr/bin/chown in fakeroot environment.
+# We rely on libfakermini.dylib and this script being in the same dir.
+#
+LIBFAKER="$(dirname "$0")/libfakermini-1.0.0.dylib"
+if [[ "$LIBFAKER" == /* ]]; then
+    /usr/bin/env "DYLD_INSERT_LIBRARIES=$(dirname "$0")/libfakermini-1.0.0.dylib" /usr/sbin/chown "$@"
+else
+    echo $0: please use absolute path for invocation
+    exit 1
+fi

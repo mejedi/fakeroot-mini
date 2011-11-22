@@ -130,6 +130,7 @@ int faked_set(int f, struct faked_stat st, struct faked_finfo fi)
 
 int faked_get(struct faked_stat st, struct faked_finfo fi)
 {
+    int reset_uid_gid;
     intmax_t  uid = -1;
     intmax_t  gid = -1;
     intmax_t  mode = -1;
@@ -144,9 +145,26 @@ int faked_get(struct faked_stat st, struct faked_finfo fi)
         if (getxattr_helper(&fi, FAKEROOTRDEV_XATTR, &rdev) == -1)
             goto fail;
 
-    if (uid == -1)
+    switch (st.type) {
+    case FAKED_STAT_STAT:
+        reset_uid_gid = (st.stat.stat->st_uid != 0);
+        break;
+    case FAKED_STAT_STAT64:
+        reset_uid_gid = (st.stat.stat64->st_uid != 0);
+        break;
+    }
+
+    /*
+     * If FAKEROOTUID(GID) was not set pretend the file is owned by
+     * root:wheel.  However if the file is REALLY owned by root,
+     * preserve original UID(GID) of the file.  This kludge exists to
+     * prevent warnings from PackageMaker.  PackageMaker compares files
+     * in a package against the corresponding files on the system volume
+     * and warns if files mode/owner/group doesn't match.
+     */
+    if (uid == -1 && reset_uid_gid)
         uid = 0;
-    if (gid == -1)
+    if (gid == -1 && reset_uid_gid)
         gid = 0;
 
     switch (st.type) {
